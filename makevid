@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ ! "$1" ]; then
+	echo "Usage: $0 <base>"
+	echo "Will read in files named <base>-%05d.tga, and output <base>.avi"
+	exit
+fi
+avconv -y -i "$1"-%05d.tga -vcodec mpeg4 "$1".avi

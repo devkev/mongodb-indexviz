@@ -1,0 +1,231 @@
+#!/usr/bin/env python
+
+import sys
+import pygame
+import gradients
+import random
+import time
+pygame.init()
+
+#w = 200
+#h = 200
+#w = 800
+#h = 800
+#w = 1024
+#h = 1024
+#w = 1500
+#h = 1500
+w = 2500
+h = 1500
+w = 2048
+h = 1500
+
+window = pygame.display.set_mode((w,h))
+
+
+num_levels = 4
+levels = range(0, h, h / (num_levels - 1))
+levels.append(h-1)
+
+
+
+#hz = 1.0
+#hz = 10.0
+hz = 25.0
+
+#num_per_frame = 1
+num_per_frame = 10
+
+mode = "bolt"
+#mode = "rangebolt"
+
+#container = "square"
+container = "triangle"
+#container = "trapezoid"
+
+paused = False
+pause_next = True
+
+
+
+
+def clear():
+	pygame.draw.rect(window, (0,0,0), (0, 0, w, h))
+
+
+def getx(value, level):
+	if container == "square":
+		return value * (w-1)
+	elif container == "triangle":
+		return (w-1)/2 * (h - level)/h + value * (w-1) * level / h
+	elif container == "trapezoid":
+		return (w-1)*(2+value)/5 * (h - level)/h + value * (w-1) * level / h
+
+
+def draw_container():
+	pygame.draw.line(window, (255,255,255), (getx(0.0, 0), 0), (0, h))
+	pygame.draw.line(window, (255,255,255), (getx(0.0, 0), 0), (getx(1.0, 0), 0))
+	pygame.draw.line(window, (255,255,255), (getx(1.0, 0), 0), (w-1, h))
+	pygame.draw.line(window, (255,255,255), (0, h), (w-1, h))
+
+
+def draw_levels():
+	for level in levels:
+		window.blit( gradients.vertical( (window.get_width(), window.get_height()/num_levels), (75, 75, 75, 255), (0, 0, 0, 255)), (0, level))
+	pointlist = []
+	pointlist.append( (0, levels[0]) )
+	pointlist.append( (getx(0, levels[0]), levels[0]) )
+	pointlist.append( (getx(0, levels[num_levels-1]), levels[num_levels-1]) )
+	pointlist.append( (0, levels[num_levels-1]) )
+	pygame.draw.polygon(window, (0,0,0), pointlist, 0)
+	pointlist = []
+	pointlist.append( (w-1, levels[0]) )
+	pointlist.append( (getx(1.0, levels[0]), levels[0]) )
+	pointlist.append( (getx(1.0, levels[num_levels-1]), levels[num_levels-1]) )
+	pointlist.append( (w-1, levels[num_levels-1]) )
+	pygame.draw.polygon(window, (0,0,0), pointlist, 0)
+	for level in levels:
+		pygame.draw.line(window, (255,255,255), (getx(0, level), level), (getx(1, level), level))
+
+
+def generate_random_bolt():
+	result = []
+	for level in range(num_levels):
+		result.append(random.random())
+	return result
+
+def get_bolt():
+	if inputfile:
+		return map(float, inputfile.readline().split())
+	else:
+		return generate_random_bolt()
+
+
+def generate_random_rangebolt(bolt):
+	#return ( (0, 0, 0), (1, 1, 1) )
+	result_end = bolt[:random.randint(0, len(bolt))]
+	for level in range(len(result_end), len(bolt)):
+		result_end.append(bolt[level] + random.random() * (1.0 - bolt[level]) * (float(level) / float(num_levels)))
+	return (bolt, result_end)
+
+
+def draw_bolt(bolt):
+	level = 0
+	for b in range(len(bolt) - 1):
+		#pygame.draw.line(window, (255,0,0), (bolt[b] * w, levels[level]), (bolt[b+1] * w, levels[level+1]))
+		pygame.draw.line(window, (255,0,0), (getx(bolt[b], levels[level]), levels[level]), (getx(bolt[b+1], levels[level+1]), levels[level+1]))
+		level = level + 1
+
+
+def draw_rangebolt(bolt):
+	#print bolt
+	level = 0
+	points = []
+	for level in range(0, len(bolt[0])):
+		#points.append( (bolt[0][len(bolt[0]) - level - 1] * w, levels[len(bolt[0]) - level - 1]) )
+		points.append( (getx(bolt[0][len(bolt[0]) - level - 1], levels[len(bolt[0]) - level - 1]), levels[len(bolt[0]) - level - 1]) )
+	for level in range(0, len(bolt[1]),):
+		#points.append( (bolt[1][level] * w, levels[level]) )
+		points.append( (getx(bolt[1][level], levels[level]), levels[level]) )
+	#print points
+	#pygame.draw.polygon(window, (0,0,0), points, 1)
+	pygame.draw.polygon(window, (255,0,0), points)
+
+
+# later (if ever)
+bolts = []
+rangebolts = []
+
+
+save_images = False
+framenum = 0
+
+def draw_all():
+	clear()
+	draw_levels()
+	draw_container()
+	if mode == "bolt":
+		for i in xrange(num_per_frame):
+			draw_bolt(get_bolt())
+	elif mode == "rangebolt":
+		for i in xrange(num_per_frame):
+			draw_rangebolt(generate_random_rangebolt(get_bolt()))
+	pygame.display.flip()
+	if save_images:
+		global framenum
+		# tga: fast and small - winner
+		# png: slow and small
+		# bmp: fast and large
+		# jpeg: inappropriate
+		# ppm: unsupported
+		pygame.image.save(window, "%s-%05d.tga" % (fnamebase, framenum))
+		framenum = framenum + 1
+
+
+inputfile = None
+fname = ""
+fnamebase = "btreecursorviz"
+if len(sys.argv) > 1:
+	#print sys.argv
+	fname = sys.argv[1]
+	inputfile = open(fname, "r")
+	fnamebase = fname[:fname.index('.')]
+	#print fnamebase
+
+#print get_bolt()
+#print generate_random_rangebolt(generate_random_bolt())
+#print generate_random_rangebolt(get_bolt())
+
+last_data = 0
+while True: 
+	now = time.time()
+	if not paused:
+		if now - last_data > 1 / hz or save_images:
+			last_data = now
+			draw_all()
+	if pause_next:
+		paused = True
+		pause_next = False
+
+	for event in pygame.event.get(): 
+		if event.type == pygame.QUIT: 
+			sys.exit(0) 
+		elif event.type == pygame.KEYDOWN: 
+			print event 
+			if event.unicode == u'q' or event.unicode == u'Q':
+				sys.exit(0) 
+			elif event.unicode == u'b':
+				mode = "bolt"
+			elif event.unicode == u'r':
+				mode = "rangebolt"
+			elif event.unicode == u's':
+				container = "square"
+			elif event.unicode == u't':
+				container = "triangle"
+			elif event.unicode == u'z':
+				container = "trapezoid"
+			elif event.unicode == u' ':
+				paused = not paused
+			elif event.unicode == u'i':
+				save_images = not save_images
+			elif event.unicode == u'.':
+				paused = False
+				pause_next = True
+			elif event.key == 273:
+				# up
+				hz = hz * 2.0
+			elif event.key == 274:
+				# down
+				hz = hz / 2.0
+			elif event.key == 276:
+				# left
+				if num_per_frame > 1:
+					num_per_frame = num_per_frame / 2
+				else:
+					num_per_frame = 1
+			elif event.key == 275:
+				# right
+				num_per_frame = num_per_frame * 2
+		else: 
+			print event 
+
